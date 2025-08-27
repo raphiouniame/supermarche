@@ -1,0 +1,39 @@
+<!-- templates/index.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-3">
+    <div class="card bg-success text-white">
+      <div class="card-body">
+        <h5>Total Ventes</h5>
+        <p id="total-ventes">0.00F</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-primary text-white">
+      <div class="card-body">
+        <h5>Bénéfice</h5>
+        <p id="benefice">0.00F</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-warning">
+      <div class="card-body">
+        <h5>Stock faible</h5>
+        <p id="stock-faible">0</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-danger text-white">
+      <div class="card-body">
+        <h5>Crédits en cours</h5>
+        <p id="credits-en-cours">0</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

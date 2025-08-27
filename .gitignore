@@ -1,0 +1,28 @@
+# Fichiers Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environnement virtuel
+venv/
+env/
+virtualenv/
+
+# Base de données locale
+*.db
+*.sqlite3
+
+# Variables d'environnement
+.env
+.env.local
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Système
+.DS_Store
+Thumbs.db
