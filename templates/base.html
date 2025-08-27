@@ -1,0 +1,36 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supermarché XYZ - Gestion</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('index') }}">🛒 Supermarché XYZ</a>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav">
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}">Accueil</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('ventes') }}">Ventes</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('credits') }}">Crédits</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('stocks') }}">Stocks</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('approvisionnements') }}">Approvisionnements</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('fournisseurs') }}">Fournisseurs</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    {% include "partials/flash_messages.html" %}
+    {% block content %}{% endblock %}
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
