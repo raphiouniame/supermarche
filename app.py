@@ -1,42 +1,63 @@
 # app.py
+# 🔴 IMPORTANT : Ce fichier doit être encodé en UTF-8
+
+# Étape 1 : Charger les variables d'environnement AVANT tout le reste
+from dotenv import load_dotenv
+load_dotenv()
+
+# Étape 2 : Imports du reste de l'application
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from models import db, Produit, Fournisseur, Transaction, Credit, CreditDetail, Paiement
 from config import Config
+import os
 import re
 from difflib import SequenceMatcher
 from datetime import datetime, timedelta
 
+# Créer l'application Flask
 app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
 
-# Créer les tables si elles n'existent pas
-@app.before_first_request
-def create_tables():
+# === Créer les tables au démarrage (Flask 3 compatible) ===
+with app.app_context():
     db.create_all()
 
 # === FONCTIONS UTILITAIRES ===
 def similar(a, b):
+    """Calcule la similarité entre deux chaînes de caractères."""
     return SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
 def trouver_produit_par_nom(nom):
-    if not nom:
-        raise ValueError("Nom vide")
-    produits = Produit.query.all()
-    exact = [p for p in produits if p.nom.lower() == nom.lower()]
-    if exact:
-        return exact[0]
-    partial = [p for p in produits if nom.lower() in p.nom.lower()]
-    if len(partial) == 1:
-        return partial[0]
-    ranked = sorted(produits, key=lambda p: similar(p.nom, nom), reverse=True)
+    """Trouve un produit par nom (exact, partiel ou similarité)."""
+    if not nom or not nom.strip():
+        raise ValueError("Nom vide ou invalide")
+    nom = nom.strip()
+
+    # Recherche exacte
+    produit = Produit.query.filter(Produit.nom.ilike(nom)).first()
+    if produit:
+        return produit
+
+    # Recherche partielle
+    produits = Produit.query.filter(Produit.nom.ilike(f"%{nom}%")).all()
+    if len(produits) == 1:
+        return produits[0]
+
+    # Recherche par similarité
+    tous = Produit.query.all()
+    if not tous:
+        raise ValueError("Aucun produit dans la base")
+    ranked = sorted(tous, key=lambda p: similar(p.nom, nom), reverse=True)
     if ranked and similar(ranked[0].nom, nom) > 0.6:
         return ranked[0]
-    raise ValueError("Produit non trouvé")
+
+    raise ValueError(f"Produit non trouvé : {nom}")
 
 # === ROUTES ===
 @app.route("/")
 def index():
+    """Page d'accueil avec statistiques."""
     total_ventes = db.session.query(db.func.sum(Transaction.prix_vente * Transaction.quantite)) \
                              .filter(Transaction.type == 'vente').scalar() or 0
     total_achats = db.session.query(db.func.sum(Transaction.prix_achat * Transaction.quantite)) \
@@ -52,6 +73,42 @@ def index():
         credits_en_cours=credits_en_cours
     )
 
+# --- AUTOCOMPLETE PRODUITS (AJAX) ---
+@app.route("/recherche_produit")
+def recherche_produit():
+    """API pour l'autocomplétion des produits (version simple)."""
+    q = request.args.get("q", "")
+    if len(q) < 2:
+        return jsonify([])
+    
+    # Recherche des produits qui contiennent la chaîne saisie (insensible à la casse)
+    produits = Produit.query.filter(Produit.nom.ilike(f"%{q}%")).limit(10).all()
+    
+    # Retourner la liste des produits trouvés
+    results = [{"id": p.id, "nom": p.nom} for p in produits]
+    return jsonify(results)
+
+@app.route("/recherche_produit_complet")
+def recherche_produit_complet():
+    """API pour l'autocomplétion des produits avec informations complètes."""
+    q = request.args.get("q", "")
+    if len(q) < 2:
+        return jsonify([])
+    
+    # Recherche des produits qui contiennent la chaîne saisie (insensible à la casse)
+    produits = Produit.query.filter(Produit.nom.ilike(f"%{q}%")).limit(10).all()
+    
+    # Retourner la liste des produits trouvés avec toutes les informations
+    results = [{
+        "id": p.id, 
+        "nom": p.nom,
+        "prix_achat": p.prix_achat,
+        "prix_vente": p.prix_vente,
+        "quantite": p.quantite,
+        "categorie": p.categorie or ""
+    } for p in produits]
+    return jsonify(results)
+
 # --- VENTES ---
 @app.route("/ventes", methods=["GET", "POST"])
 def ventes():
@@ -65,9 +122,9 @@ def ventes():
             if 'x' not in item:
                 flash(f"Format invalide : {item}", "error")
                 continue
-            nom, qte = item.rsplit('x', 1)
-            nom = nom.strip()
             try:
+                nom, qte = item.rsplit('x', 1)
+                nom = nom.strip()
                 qte = int(qte.strip())
                 produit = trouver_produit_par_nom(nom)
                 if qte > produit.quantite:
@@ -84,7 +141,7 @@ def ventes():
                 })
                 total_global += total
             except Exception as e:
-                flash(f"Erreur avec {nom}: {str(e)}", "error")
+                flash(f"Erreur avec {item}: {str(e)}", "error")
 
         if not details:
             return redirect(url_for("ventes"))
@@ -97,7 +154,12 @@ def ventes():
             return redirect(url_for("ventes"))
 
         if not request.form.get("confirm"):
-            return render_template("confirm_sale.html", details=details, total_global=total_global, montant_paye=montant_paye, monnaie=monnaie)
+            return render_template("confirm_sale.html",
+                details=details,
+                total_global=total_global,
+                montant_paye=montant_paye,
+                monnaie=monnaie
+            )
 
         # Confirmer la vente
         for d in details:
@@ -118,15 +180,6 @@ def ventes():
     produits = Produit.query.all()
     return render_template("ventes.html", produits=produits)
 
-# --- AUTOCOMPLETE PRODUITS (AJAX) ---
-@app.route("/recherche_produit")
-def recherche_produit():
-    q = request.args.get("q", "")
-    if len(q) < 2:
-        return jsonify([])
-    produits = Produit.query.filter(Produit.nom.ilike(f"%{q}%")).limit(10).all()
-    return jsonify([{"id": p.id, "nom": p.nom} for p in produits])
-
 # --- CREDITS ---
 @app.route("/credits", methods=["GET", "POST"])
 def credits():
@@ -142,11 +195,14 @@ def credits():
             if 'x' not in item:
                 flash(f"Format invalide : {item}", "error")
                 continue
-            nom_prod, qte = item.rsplit('x', 1)
-            qte = int(qte.strip())
-            produit = trouver_produit_par_nom(nom_prod.strip())
-            total += produit.prix_vente * qte
-            details.append({'produit_id': produit.id, 'quantite': qte, 'prix_vente': produit.prix_vente})
+            try:
+                nom_prod, qte = item.rsplit('x', 1)
+                qte = int(qte.strip())
+                produit = trouver_produit_par_nom(nom_prod.strip())
+                total += produit.prix_vente * qte
+                details.append({'produit_id': produit.id, 'quantite': qte, 'prix_vente': produit.prix_vente})
+            except Exception as e:
+                flash(f"Erreur avec {item}: {str(e)}", "error")
 
         if total == 0:
             flash("Aucun produit valide", "error")
@@ -175,14 +231,15 @@ def credits():
 def paiement_credit(id):
     credit = Credit.query.get_or_404(id)
     montant = float(request.form.get("montant"))
-    solde = credit.total - sum(p.montant for p in credit.paiements)
+    total_paiements = sum(p.montant for p in credit.paiements)
+    solde = credit.total - total_paiements
     if montant > solde:
         flash("Montant trop élevé", "error")
     else:
         paiement = Paiement(credit_id=id, montant=montant)
         db.session.add(paiement)
         db.session.commit()
-        if solde - montant <= 0:
+        if total_paiements + montant >= credit.total:
             credit.regle = True
             db.session.commit()
             flash("Crédit entièrement remboursé !", "success")
@@ -254,5 +311,16 @@ def fournisseurs():
     fournisseurs = Fournisseur.query.all()
     return render_template("fournisseurs.html", fournisseurs=fournisseurs)
 
+# --- ROUTE DE TEST (optionnel) ---
+@app.route("/test-db")
+def test_db():
+    try:
+        db.session.execute('SELECT 1')
+        return "✅ Connexion à la base de données réussie !"
+    except Exception as e:
+        return f"❌ Erreur de connexion : {str(e)}"
+
+# === LANCEMENT DE L'APP ===
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=False, host="0.0.0.0", port=port)

@@ -1,0 +1,37 @@
+<!-- templates/stocks.html -->
+{% extends "base.html" %}
+
+{% block title %}Stocks{% endblock %}
+
+{% block content %}
+    <h1>Stocks</h1>
+
+    <h2>Produits en stock faible (≤ 5)</h2>
+    <ul>
+        {% for p in produits_faibles %}
+            <li>{{ p.nom }} - Stock : {{ p.quantite }}</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Tous les produits</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Stock</th>
+                <th>Prix d'achat</th>
+                <th>Prix de vente</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in tous_produits %}
+            <tr>
+                <td>{{ p.nom }}</td>
+                <td>{{ p.quantite }}</td>
+                <td>{{ p.prix_achat }}F</td>
+                <td>{{ p.prix_vente }}F</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

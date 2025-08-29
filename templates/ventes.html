@@ -1,0 +1,180 @@
+<!-- templates/ventes.html -->
+{% extends "base.html" %}
+
+{% block title %}Ventes{% endblock %}
+
+{% block content %}
+    <h1>Enregistrer une vente</h1>
+
+    <form method="POST">
+        <div class="form-group" style="position: relative;">
+            <label>Produits (format: "nom x quantité", séparés par des virgules)</label>
+            <input 
+                type="text" 
+                name="produits" 
+                id="produits-input" 
+                placeholder="Ex: Biscuit funio x2, soda x1" 
+                required 
+                style="width: 300px; position: relative; z-index: 1;"
+                autocomplete="off"
+            >
+            <!-- Suggestions affichées juste en dessous -->
+            <div 
+                id="suggestions" 
+                style="
+                    position: absolute; 
+                    background: white; 
+                    border: 1px solid #ccc; 
+                    border-radius: 4px;
+                    max-height: 200px; 
+                    overflow-y: auto; 
+                    z-index: 1000; 
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    display: none;
+                    left: 0;
+                    top: 100%; 
+                    width: 300px;
+                    margin-top: 2px;
+                ">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Montant payé (F)</label>
+            <input type="number" name="montant" step="0.01" placeholder="1000" required>
+        </div>
+        <button type="submit">Calculer</button>
+    </form>
+
+    <hr>
+    <h2>Produits disponibles</h2>
+    <ul>
+        {% for produit in produits %}
+            <li>{{ produit.nom }} - {{ produit.prix_vente }}F (Stock: {{ produit.quantite }})</li>
+        {% endfor %}
+    </ul>
+
+    <!-- Script d'autocomplétion amélioré -->
+    <script>
+        const input = document.getElementById('produits-input');
+        const suggestionsDiv = document.getElementById('suggestions');
+
+        // Affiche/masque les suggestions
+        function showSuggestions(items) {
+            suggestionsDiv.innerHTML = '';
+            if (items.length === 0) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.textContent = item.nom;
+                div.style.padding = '8px 12px';
+                div.style.cursor = 'pointer';
+                div.style.borderBottom = '1px solid #eee';
+                div.style.fontSize = '14px';
+                div.style.backgroundColor = 'white';
+                
+                div.onmouseenter = () => div.style.backgroundColor = '#f8f9fa';
+                div.onmouseleave = () => div.style.backgroundColor = 'white';
+                
+                div.onclick = () => {
+                    // Remplacer le dernier mot (après virgule) par le nom complet
+                    const current = input.value.trim();
+                    const parts = current.split(/,\s*/);
+                    parts.pop(); // Enlever le dernier élément (partial)
+                    const rest = parts.length > 0 ? parts.join(', ') + ', ' : '';
+                    
+                    // Insérer le nom du produit + " x " pour faciliter la saisie
+                    input.value = rest + item.nom + ' x ';
+                    input.focus();
+                    // Placer le curseur après "x "
+                    input.setSelectionRange(input.value.length, input.value.length);
+                    suggestionsDiv.style.display = 'none';
+                };
+                
+                suggestionsDiv.appendChild(div);
+            });
+            suggestionsDiv.style.display = 'block';
+        }
+
+        // Recherche avec délai pour éviter les appels excessifs
+        let timeoutId;
+        input.addEventListener('input', function() {
+            const query = this.value.trim();
+            
+            // Extraire le dernier mot après la dernière virgule
+            const lastWord = query.split(/,\s*/).pop().trim();
+            
+            // Enlever " x" et tout ce qui suit si présent
+            const searchTerm = lastWord.split(/\s+x\s*\d*/)[0].trim();
+            
+            console.log("Terme de recherche:", searchTerm);
+            
+            if (searchTerm.length < 2) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+
+            // Délai de 300ms pour éviter trop de requêtes
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                fetch(`/recherche_produit?q=${encodeURIComponent(searchTerm)}`)
+                    .then(response => {
+                        console.log("Réponse de /recherche_produit:", response.status);
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log("Données reçues:", data);
+                        showSuggestions(data);
+                    })
+                    .catch(err => {
+                        console.error("Erreur dans /recherche_produit:", err);
+                        suggestionsDiv.style.display = 'none';
+                    });
+            }, 300);
+        });
+
+        // Masquer les suggestions si on clique ailleurs
+        document.addEventListener('click', function(e) {
+            if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                suggestionsDiv.style.display = 'none';
+            }
+        });
+
+        // Gestion des touches fléchées (optionnel)
+        let selectedIndex = -1;
+        input.addEventListener('keydown', function(e) {
+            const suggestions = suggestionsDiv.querySelectorAll('div');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, suggestions.length - 1);
+                updateSelection(suggestions);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelection(suggestions);
+            } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                e.preventDefault();
+                suggestions[selectedIndex].click();
+            } else if (e.key === 'Escape') {
+                suggestionsDiv.style.display = 'none';
+                selectedIndex = -1;
+            }
+        });
+
+        function updateSelection(suggestions) {
+            suggestions.forEach((div, index) => {
+                if (index === selectedIndex) {
+                    div.style.backgroundColor = '#007BFF';
+                    div.style.color = 'white';
+                } else {
+                    div.style.backgroundColor = 'white';
+                    div.style.color = 'black';
+                }
+            });
+        }
+    </script>
+{% endblock %}

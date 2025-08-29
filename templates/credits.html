@@ -1,0 +1,40 @@
+<!-- templates/credits.html -->
+{% extends "base.html" %}
+
+{% block title %}Crédits{% endblock %}
+
+{% block content %}
+    <h1>Enregistrer un crédit</h1>
+
+    <form method="POST">
+        <div class="form-group">
+            <label>Nom du client</label>
+            <input type="text" name="nom_client" required>
+        </div>
+        <div class="form-group">
+            <label>Contact</label>
+            <input type="text" name="contact">
+        </div>
+        <div class="form-group">
+            <label>Produits (format: "nom x quantité")</label>
+            <input type="text" name="produits" placeholder="Soda x2, Pain x1" required style="width: 300px;">
+        </div>
+        <button type="submit">Enregistrer le crédit</button>
+    </form>
+
+    <hr>
+    <h2>Crédits en cours</h2>
+    <ul>
+        {% for credit in credits %}
+            <li>
+                {{ credit.nom_client }} - {{ credit.total }}F ({{ "Réglé" if credit.regle else "Non réglé" }})
+                {% if not credit.regle %}
+                <form action="{{ url_for('paiement_credit', id=credit.id) }}" method="POST" style="display:inline;">
+                    <input type="number" name="montant" step="0.01" placeholder="Montant" required>
+                    <button type="submit">Payer</button>
+                </form>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}

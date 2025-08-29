@@ -1,0 +1,54 @@
+<!-- templates/confirm_sale.html -->
+{% extends "base.html" %}
+
+{% block title %}Confirmer la vente{% endblock %}
+
+{% block content %}
+    <h1>Confirmer la vente</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Produit</th>
+                <th>Quantité</th>
+                <th>Prix unitaire</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in details %}
+            <tr>
+                <td>{{ d.produit.nom }}</td>
+                <td>{{ d.quantite }}</td>
+                <td>{{ d.prix_vente }}F</td>
+                <td>{{ d.total|round(2) }}F</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3" class="total">Total global</td>
+                <td class="total">{{ total_global|round(2) }}F</td>
+            </tr>
+            <tr>
+                <td colspan="3">Montant payé</td>
+                <td>{{ montant_paye }}F</td>
+            </tr>
+            <tr>
+                <td colspan="3">Monnaie à rendre</td>
+                <td>{{ monnaie|round(2) }}F</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <form method="POST">
+        <input type="hidden" name="produits" value="
+            {% for d in details %}{{ d.produit.nom }} x {{ d.quantite }}{% if not loop.last %},{% endif %}{% endfor %}
+        ">
+        <input type="hidden" name="montant" value="{{ montant_paye }}">
+        <input type="hidden" name="confirm" value="1">
+        <button type="submit">Confirmer la vente</button>
+    </form>
+
+    <a href="{{ url_for('ventes') }}" style="color: #6c757d; text-decoration: none;">← Retour aux ventes</a>
+{% endblock %}
