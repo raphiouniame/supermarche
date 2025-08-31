@@ -2,30 +2,38 @@
 import os
 
 class Config:
-    # Clé secrète
-    SECRET_KEY = os.environ.get("SECRET_KEY") or "change-this-in-production-render-2025"
+    # 🔐 Clé secrète : obligatoire en production
+    SECRET_KEY = os.environ.get("SECRET_KEY")
+    if not SECRET_KEY:
+        raise RuntimeError("SECRET_KEY is not set. Define it in environment variables.")
 
-    # Base de données
+    # 🛢️ URL de la base de données
     DATABASE_URL = (
-        os.environ.get("DATABASE_URL") or 
+        os.environ.get("DATABASE_URL") or
         os.environ.get("POSTGRES_URL") or
         os.environ.get("POSTGRESQL_URL")
     )
 
-    # Fallback pour le développement local
+    # 🛠️ Fallback en local uniquement (SQLite)
     if not DATABASE_URL:
         DATABASE_URL = "sqlite:///local.db"
-        print("WARNING: Using SQLite for local development. Set DATABASE_URL for production.")
+        print("⚠️ Using SQLite for local development. Set DATABASE_URL in production.")
 
-    # Remplacer postgres:// par postgresql:// (obligatoire pour SQLAlchemy >= 1.4)
+    # 🔗 Remplacer postgres:// ou postgresql:// par postgresql+pg8000://
     if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
+    elif DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
 
+    # 📦 Configuration Flask-SQLAlchemy
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    
-    # Options pour la stabilité avec PostgreSQL
+
+    # ⚙️ Options pour la stabilité (pooling + SSL pour Supabase)
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_pre_ping': True,
-        'pool_recycle': 300,
+        'pool_pre_ping': True,           # Vérifie la connexion avant chaque requête
+        'pool_recycle': 300,             # Recrée les connexions toutes les 5 min
+        'connect_args': {
+            'ssl_context': True          # 🔐 Obligatoire pour Supabase
+        } if 'supabase.co' in DATABASE_URL else {}
     }
