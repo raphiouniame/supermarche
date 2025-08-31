@@ -34,6 +34,6 @@ class Config:
         'pool_pre_ping': True,           # Vérifie la connexion avant chaque requête
         'pool_recycle': 300,             # Recrée les connexions toutes les 5 min
         'connect_args': {
-            'ssl_context': True          # 🔐 Obligatoire pour Supabase
+            'sslmode': 'require'         # ✅ CORRIGÉ : requis par pg8000 + Supabase
         } if 'supabase.co' in DATABASE_URL else {}
     }
